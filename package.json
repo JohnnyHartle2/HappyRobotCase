@@ -1,0 +1,48 @@
+{
+  "name": "happyrobot-loads-api",
+  "version": "1.0.0",
+  "description": "Loads API for HappyRobot carrier automation platform",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "migrate": "prisma migrate dev",
+    "generate": "prisma generate",
+    "seed": "tsx prisma/seed.ts",
+    "seed:pg": "tsx prisma/seed.ts",
+    "gen-certs": "bash scripts/gen-certs.sh",
+    "lint": "eslint src --ext .ts",
+    "test": "vitest",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^8.4.0",
+    "@fastify/helmet": "^11.1.1",
+    "@fastify/rate-limit": "^9.1.0",
+    "@prisma/client": "^5.7.1",
+    "dotenv": "^16.3.1",
+    "fastify": "^4.24.3",
+    "fastify-plugin": "^5.1.0",
+    "fastify-type-provider-zod": "^2.1.0",
+    "pino": "^10.0.0",
+    "pino-pretty": "^10.3.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "prisma": "^5.7.1",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}
