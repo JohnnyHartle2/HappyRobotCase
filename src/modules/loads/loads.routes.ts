@@ -36,7 +36,7 @@ const loadsRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       try {
-        const result = await loadsService.findAll(request.query);
+        const result = await loadsService.findAll(request.query as any);
         return reply.send(result);
       } catch (error) {
         fastify.log.error(error);
@@ -106,7 +106,7 @@ const loadsRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       try {
-        const load = await loadsService.create(request.body);
+        const load = await loadsService.create(request.body as any);
         return reply.status(201).send(load);
       } catch (error) {
         fastify.log.error(error);
@@ -140,7 +140,7 @@ const loadsRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const load = await loadsService.update(
           request.params.load_id,
-          request.body
+          request.body as any
         );
 
         if (!load) {

@@ -22,7 +22,7 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
         database: "connected",
       });
     } catch (error) {
-      fastify.log.error("Database health check failed:", error);
+      fastify.log.error("Database health check failed:", error as Error);
       return reply.status(503).send({
         status: "not ready",
         timestamp: new Date().toISOString(),

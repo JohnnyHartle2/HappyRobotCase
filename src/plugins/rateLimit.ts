@@ -13,7 +13,7 @@ const rateLimitPlugin: FastifyPluginAsync = async (fastify) => {
       return {
         error: "Too Many Requests",
         message: `Rate limit exceeded, retry in ${Math.round(
-          context.after / 1000
+          Number(context.after) / 1000
         )} seconds`,
         statusCode: 429,
       };
