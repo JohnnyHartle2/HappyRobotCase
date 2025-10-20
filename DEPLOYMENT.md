@@ -77,7 +77,7 @@ docker compose down
    - **Root Directory**: Leave empty
    - **Environment**: `Node`
    - **Build Command**: `npm install && npx prisma generate && npm run build`
-   - **Start Command**: `npx prisma migrate deploy && node dist/index.js`
+   - **Start Command**: `bash scripts/deploy.sh`
 
 ### 4. Set Environment Variables
 
