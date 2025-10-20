@@ -1,20 +1,22 @@
 -- CreateTable
 CREATE TABLE "loads" (
-    "load_id" TEXT NOT NULL PRIMARY KEY,
+    "load_id" TEXT NOT NULL,
     "origin" TEXT NOT NULL,
     "destination" TEXT NOT NULL,
-    "pickup_datetime" DATETIME NOT NULL,
-    "delivery_datetime" DATETIME NOT NULL,
+    "pickup_datetime" TIMESTAMP(3) NOT NULL,
+    "delivery_datetime" TIMESTAMP(3) NOT NULL,
     "equipment_type" TEXT NOT NULL,
-    "loadboard_rate" DECIMAL NOT NULL,
+    "loadboard_rate" DECIMAL(65,30) NOT NULL,
     "notes" TEXT,
     "weight" INTEGER,
     "commodity_type" TEXT NOT NULL,
     "num_of_pieces" INTEGER NOT NULL,
     "miles" INTEGER NOT NULL,
     "dimensions" TEXT NOT NULL,
-    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" DATETIME NOT NULL
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "loads_pkey" PRIMARY KEY ("load_id")
 );
 
 -- CreateIndex
