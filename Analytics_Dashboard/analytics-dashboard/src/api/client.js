@@ -28,6 +28,9 @@ export const metricsApi = {
   getTrends: (params = {}) => apiClient.get("/metrics/trends", { params }),
   getRecentCalls: (limit = 10) =>
     apiClient.get("/metrics/recent-calls", { params: { limit } }),
+  getRateVarianceDistribution: () =>
+    apiClient.get("/metrics/rate-variance-distribution"),
+  getConversionFunnel: () => apiClient.get("/metrics/conversion-funnel"),
 };
 
 export const breakdownsApi = {

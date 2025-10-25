@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional, List
 from ..database import get_db
-from ..schemas import OverviewMetrics, TrendsResponse, ErrorResponse, CallEventResponse
+from ..schemas import OverviewMetrics, TrendsResponse, ErrorResponse, CallEventResponse, RateVarianceDistribution, ConversionFunnel
 from ..auth import require_read_key
-from ..utils.aggregations import get_overview_metrics, get_trends_data
+from ..utils.aggregations import get_overview_metrics, get_trends_data, get_rate_variance_distribution, get_conversion_funnel
 from ..models import CallEvent
 
 router = APIRouter()
@@ -82,4 +82,36 @@ async def get_recent_calls(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get recent calls: {str(e)}"
+        )
+
+@router.get("/metrics/rate-variance-distribution", response_model=RateVarianceDistribution)
+async def get_rate_variance_dist(
+    request: Request,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(require_read_key)
+):
+    """Get rate variance distribution"""
+    try:
+        buckets = get_rate_variance_distribution(db)
+        return RateVarianceDistribution(buckets=buckets)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get rate variance distribution: {str(e)}"
+        )
+
+@router.get("/metrics/conversion-funnel", response_model=ConversionFunnel)
+async def get_funnel(
+    request: Request,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(require_read_key)
+):
+    """Get conversion funnel data"""
+    try:
+        stages = get_conversion_funnel(db)
+        return ConversionFunnel(stages=stages)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get conversion funnel: {str(e)}"
         )

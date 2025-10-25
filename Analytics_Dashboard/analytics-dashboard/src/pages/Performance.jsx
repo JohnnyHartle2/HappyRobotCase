@@ -75,6 +75,25 @@ const Performance = () => {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  const {
+    data: rateVariance,
+    isLoading: rateVarianceLoading,
+    error: rateVarianceError,
+  } = useQuery({
+    queryKey: ["rateVariance"],
+    queryFn: () =>
+      metricsApi.getRateVarianceDistribution().then((res) => res.data),
+  });
+
+  const {
+    data: conversionFunnel,
+    isLoading: conversionFunnelLoading,
+    error: conversionFunnelError,
+  } = useQuery({
+    queryKey: ["conversionFunnel"],
+    queryFn: () => metricsApi.getConversionFunnel().then((res) => res.data),
+  });
+
   if (overviewLoading || trendsLoading || laneLoading || equipmentLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -201,8 +220,36 @@ const Performance = () => {
         />
       </div>
 
+      {/* Negotiation Efficiency */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="card">
+          <h4 className="text-sm font-medium text-gray-600 mb-2">
+            Avg Negotiation Rounds
+          </h4>
+          <p className="text-2xl font-bold text-gray-900">
+            {overview?.avg_negotiation_rounds?.toFixed(1) || 0}
+          </p>
+        </div>
+        <div className="card">
+          <h4 className="text-sm font-medium text-gray-600 mb-2">
+            Avg Rate Variance
+          </h4>
+          <p className="text-2xl font-bold text-gray-900">
+            {overview?.avg_rate_variance_pct?.toFixed(1) || 0}%
+          </p>
+        </div>
+        <div className="card">
+          <h4 className="text-sm font-medium text-gray-600 mb-2">
+            Success Rate
+          </h4>
+          <p className="text-2xl font-bold text-gray-900">
+            {overview?.success_rate?.toFixed(1) || 0}%
+          </p>
+        </div>
+      </div>
+
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">
@@ -275,6 +322,29 @@ const Performance = () => {
             colors={sentimentData.map((item) => item.color)}
           />
         </div>
+
+        <div className="card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Rate Variance Distribution
+          </h3>
+          {rateVarianceLoading ? (
+            <div className="flex justify-center py-8">
+              <LoadingSpinner />
+            </div>
+          ) : rateVarianceError ? (
+            <ErrorMessage
+              message="Failed to load rate variance data"
+              onRetry={() => window.location.reload()}
+            />
+          ) : (
+            <BarChart
+              data={rateVariance?.buckets || []}
+              dataKey="count"
+              xAxisKey="bucket"
+              color="#8b5cf6"
+            />
+          )}
+        </div>
       </div>
 
       {/* Breakdown Tables */}
@@ -308,6 +378,30 @@ const Performance = () => {
             ]}
           />
         </div>
+      </div>
+
+      {/* Conversion Funnel - Full width */}
+      <div className="card">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Conversion Funnel
+        </h3>
+        {conversionFunnelLoading ? (
+          <div className="flex justify-center py-8">
+            <LoadingSpinner />
+          </div>
+        ) : conversionFunnelError ? (
+          <ErrorMessage
+            message="Failed to load conversion funnel data"
+            onRetry={() => window.location.reload()}
+          />
+        ) : (
+          <BarChart
+            data={conversionFunnel?.stages || []}
+            dataKey="count"
+            xAxisKey="stage"
+            color="#3b82f6"
+          />
+        )}
       </div>
 
       {/* Recent Calls */}

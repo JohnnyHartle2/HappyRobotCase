@@ -16,6 +16,7 @@ def get_overview_metrics(db: Session) -> OverviewMetrics:
             total_calls=0,
             successful_calls=0,
             success_rate=0.0,
+            avg_rpm=0.0,
             avg_call_duration_seconds=0.0,
             avg_loads_per_call=0.0,
             avg_negotiation_rounds=0.0,
@@ -39,6 +40,9 @@ def get_overview_metrics(db: Session) -> OverviewMetrics:
     # Average rate variance
     avg_variance = db.query(func.avg(CallEvent.kpi_rate_variance_pct)).scalar() or 0
     
+    # Average RPM
+    avg_rpm = db.query(func.avg(CallEvent.kpi_rpm)).scalar() or 0
+    
     # Sentiment distribution
     positive = db.query(CallEvent).filter(CallEvent.carrier_sentiment == "positive").count()
     negative = db.query(CallEvent).filter(CallEvent.carrier_sentiment == "negative").count()
@@ -56,6 +60,7 @@ def get_overview_metrics(db: Session) -> OverviewMetrics:
         total_calls=total_calls,
         successful_calls=successful_calls,
         success_rate=round(success_rate, 2),
+        avg_rpm=round(float(avg_rpm), 2),
         avg_call_duration_seconds=round(avg_duration, 0),
         avg_loads_per_call=round(avg_loads, 2),
         avg_negotiation_rounds=round(avg_rounds, 2),
@@ -319,3 +324,48 @@ def get_smart_matching(db: Session, request: MatchingRequest) -> MatchingRespons
         equipment_type=equipment_type,
         recommendations=recommendations[:5]
     )
+
+def get_rate_variance_distribution(db: Session):
+    """Get distribution of rate variance across buckets"""
+    total = db.query(CallEvent).filter(CallEvent.kpi_rate_variance_pct.isnot(None)).count()
+    
+    buckets = [
+        ("< -10%", -float('inf'), -10),
+        ("-10% to -5%", -10, -5),
+        ("-5% to 0%", -5, 0),
+        ("0% to 5%", 0, 5),
+        ("5% to 10%", 5, 10),
+        ("> 10%", 10, float('inf'))
+    ]
+    
+    result = []
+    for label, min_val, max_val in buckets:
+        if max_val == float('inf'):
+            count = db.query(CallEvent).filter(CallEvent.kpi_rate_variance_pct >= min_val).count()
+        elif min_val == -float('inf'):
+            count = db.query(CallEvent).filter(CallEvent.kpi_rate_variance_pct < max_val).count()
+        else:
+            count = db.query(CallEvent).filter(
+                and_(CallEvent.kpi_rate_variance_pct >= min_val, CallEvent.kpi_rate_variance_pct < max_val)
+            ).count()
+        
+        percentage = (count / total * 100) if total > 0 else 0
+        result.append({"bucket": label, "count": count, "percentage": round(percentage, 1)})
+    
+    return result
+
+def get_conversion_funnel(db: Session):
+    """Get conversion funnel stages"""
+    total_calls = db.query(CallEvent).count()
+    offers_made = db.query(CallEvent).filter(CallEvent.offered_rate_initial.isnot(None)).count()
+    counter_offers = db.query(CallEvent).filter(CallEvent.carrier_counter_rate.isnot(None)).count()
+    successful = db.query(CallEvent).filter(CallEvent.group_outcome_simple == "Successful").count()
+    
+    stages = [
+        {"stage": "Total Calls", "count": total_calls, "percentage": 100.0},
+        {"stage": "Offers Made", "count": offers_made, "percentage": round((offers_made / total_calls * 100) if total_calls > 0 else 0, 1)},
+        {"stage": "Counter Offers", "count": counter_offers, "percentage": round((counter_offers / total_calls * 100) if total_calls > 0 else 0, 1)},
+        {"stage": "Successful", "count": successful, "percentage": round((successful / total_calls * 100) if total_calls > 0 else 0, 1)}
+    ]
+    
+    return stages

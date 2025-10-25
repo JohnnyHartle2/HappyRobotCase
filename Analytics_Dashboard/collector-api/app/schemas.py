@@ -126,6 +126,7 @@ class OverviewMetrics(BaseModel):
     total_calls: int
     successful_calls: int
     success_rate: float
+    avg_rpm: Optional[float]
     avg_call_duration_seconds: float
     avg_loads_per_call: float
     avg_negotiation_rounds: float
@@ -142,6 +143,22 @@ class TrendDataPoint(BaseModel):
 class TrendsResponse(BaseModel):
     data: List[TrendDataPoint]
     interval: str
+
+class RateVarianceBucket(BaseModel):
+    bucket: str
+    count: int
+    percentage: float
+
+class RateVarianceDistribution(BaseModel):
+    buckets: List[RateVarianceBucket]
+
+class ConversionFunnelStage(BaseModel):
+    stage: str
+    count: int
+    percentage: float  # percentage of total calls
+
+class ConversionFunnel(BaseModel):
+    stages: List[ConversionFunnelStage]
 
 class LaneBreakdown(BaseModel):
     lane: str

@@ -7,11 +7,10 @@ import {
   useLocation,
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BarChart3, Brain, Truck, Search, TrendingUp } from "lucide-react";
+import { BarChart3, Truck, Search } from "lucide-react";
 import Performance from "./pages/Performance";
 import CarrierIntelligence from "./pages/CarrierIntelligence";
 import LoadMatching from "./pages/LoadMatching";
-import Intelligence from "./pages/Intelligence";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,7 +28,6 @@ const Navigation = () => {
     { path: "/", label: "Performance", icon: BarChart3 },
     { path: "/carriers", label: "Carrier Intelligence", icon: Truck },
     { path: "/matching", label: "Load Matching", icon: Search },
-    { path: "/insights", label: "Insights", icon: TrendingUp },
   ];
 
   return (
@@ -83,7 +81,6 @@ const App = () => {
               <Route path="/" element={<Performance />} />
               <Route path="/carriers" element={<CarrierIntelligence />} />
               <Route path="/matching" element={<LoadMatching />} />
-              <Route path="/insights" element={<Intelligence />} />
             </Routes>
           </main>
         </div>
