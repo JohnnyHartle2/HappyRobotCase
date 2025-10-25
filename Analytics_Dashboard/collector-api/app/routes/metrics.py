@@ -1,0 +1,62 @@
+from fastapi import APIRouter, Depends, Query, HTTPException, status
+from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
+from typing import Optional
+from ..database import get_db
+from ..schemas import OverviewMetrics, TrendsResponse, ErrorResponse
+from ..auth import require_read_key
+from ..utils.aggregations import get_overview_metrics, get_trends_data
+
+router = APIRouter()
+
+@router.get("/metrics/overview", response_model=OverviewMetrics)
+async def get_overview(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(require_read_key)
+):
+    """Get overview metrics for all calls"""
+    try:
+        return get_overview_metrics(db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get overview metrics: {str(e)}"
+        )
+
+@router.get("/metrics/trends", response_model=TrendsResponse)
+async def get_trends(
+    start_date: Optional[datetime] = Query(None, description="Start date (ISO format)"),
+    end_date: Optional[datetime] = Query(None, description="End date (ISO format)"),
+    interval: str = Query("day", description="Time interval: hour, day, or week"),
+    db: Session = Depends(get_db),
+    api_key: str = Depends(require_read_key)
+):
+    """Get time-series trend data"""
+    try:
+        # Default to last 30 days if no dates provided
+        if not end_date:
+            end_date = datetime.now()
+        if not start_date:
+            start_date = end_date - timedelta(days=30)
+        
+        # Validate interval
+        if interval not in ["hour", "day", "week"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Interval must be 'hour', 'day', or 'week'"
+            )
+        
+        data = get_trends_data(db, start_date, end_date, interval)
+        
+        return TrendsResponse(
+            data=data,
+            interval=interval
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get trends data: {str(e)}"
+        )
