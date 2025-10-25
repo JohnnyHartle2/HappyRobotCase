@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, and_, or_
+from sqlalchemy import func, desc, and_, or_, case
 from datetime import datetime, timedelta, date
 from typing import List, Dict, Any
 from ..models import CallEvent, Carrier, CarrierEquipment, CarrierLane
@@ -81,13 +81,13 @@ def get_trends_data(db: Session, start_date: datetime, end_date: datetime, inter
         date_trunc.label('date'),
         func.count(CallEvent.id).label('total_calls'),
         func.avg(
-            func.case(
+            case(
                 (CallEvent.group_outcome_simple == "Successful", 1),
                 else_=0
             )
         ).label('success_rate'),
         func.avg(
-            func.case(
+            case(
                 (CallEvent.carrier_sentiment == "positive", 1),
                 (CallEvent.carrier_sentiment == "negative", -1),
                 else_=0
@@ -123,7 +123,7 @@ def get_lane_breakdown(db: Session) -> List[LaneBreakdown]:
         CallEvent.lane,
         func.count(CallEvent.id).label('total_calls'),
         func.avg(
-            func.case(
+            case(
                 (CallEvent.group_outcome_simple == "Successful", 1),
                 else_=0
             )
@@ -156,7 +156,7 @@ def get_equipment_breakdown(db: Session) -> List[EquipmentBreakdown]:
         CallEvent.equipment_type,
         func.count(CallEvent.id).label('total_calls'),
         func.avg(
-            func.case(
+            case(
                 (CallEvent.group_outcome_simple == "Successful", 1),
                 else_=0
             )
