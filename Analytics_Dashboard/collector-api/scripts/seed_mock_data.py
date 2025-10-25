@@ -106,7 +106,7 @@ def generate_mock_data():
         
         events.append(event)
     
-    return events
+    return events, carriers
 
 def seed_database():
     """Seed the database with mock data"""
@@ -115,7 +115,7 @@ def seed_database():
     create_tables()
     
     # Generate mock data
-    events = generate_mock_data()
+    events, carriers = generate_mock_data()
     
     # Insert data
     db = SessionLocal()
