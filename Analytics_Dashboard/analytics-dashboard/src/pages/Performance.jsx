@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Phone,
@@ -17,6 +17,7 @@ import ErrorMessage from "../components/ErrorMessage";
 import { metricsApi, breakdownsApi } from "../api/client";
 
 const Performance = () => {
+  const [timeRange, setTimeRange] = useState("30"); // days
   const {
     data: overview,
     isLoading: overviewLoading,
@@ -31,8 +32,19 @@ const Performance = () => {
     isLoading: trendsLoading,
     error: trendsError,
   } = useQuery({
-    queryKey: ["trends"],
-    queryFn: () => metricsApi.getTrends().then((res) => res.data),
+    queryKey: ["trends", timeRange],
+    queryFn: () => {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - parseInt(timeRange));
+
+      return metricsApi
+        .getTrends({
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString(),
+        })
+        .then((res) => res.data);
+    },
   });
 
   const {
@@ -174,6 +186,55 @@ const Performance = () => {
           icon={Loader}
           formatValue={(val) => val?.toFixed(1) || 0}
         />
+      </div>
+
+      {/* Time Range Selector */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-medium text-gray-700">Time Range:</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTimeRange("1")}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                timeRange === "1"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              24 Hours
+            </button>
+            <button
+              onClick={() => setTimeRange("7")}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                timeRange === "7"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              7 Days
+            </button>
+            <button
+              onClick={() => setTimeRange("30")}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                timeRange === "30"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              30 Days
+            </button>
+            <button
+              onClick={() => setTimeRange("90")}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                timeRange === "90"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              90 Days
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Charts */}

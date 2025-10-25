@@ -72,7 +72,7 @@ const CarrierIntelligence = () => {
         }
       }) || [];
 
-  const formatPercentage = (value) => `${Number(value || 0)}%`;
+  const formatPercentage = (value) => `${Number(value || 0).toFixed(2)}%`;
   const formatCurrency = (value) => `$${Number(value || 0).toFixed(2)}`;
   const formatDuration = (seconds) => {
     if (!seconds) return "0:00";
@@ -102,7 +102,7 @@ const CarrierIntelligence = () => {
     status: carrier.status,
     preferred: carrier.preferred,
     totalCalls: carrier.total_calls,
-    successRate: `${carrier.success_rate || 0}%`,
+    successRate: `${Number(carrier.success_rate || 0).toFixed(2)}%`,
     avgRpm: `$${carrier.avg_rpm || 0}`,
     avgLoadsPerCall: carrier.avg_loads_per_call
       ? Number(carrier.avg_loads_per_call).toFixed(1)
@@ -196,10 +196,10 @@ const CarrierIntelligence = () => {
         />
         <KPICard
           title="Avg Success Rate"
-          value={
+          value={Number(
             carriers?.reduce((sum, c) => sum + (c.success_rate || 0), 0) /
               (carriers?.length || 1) || 0
-          }
+          ).toFixed(2)}
           icon={TrendingUp}
           formatValue={formatPercentage}
         />
