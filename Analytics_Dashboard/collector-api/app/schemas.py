@@ -38,10 +38,10 @@ class CarrierResponse(BaseModel):
     mc_number: Optional[str]
     total_calls: int
     successful_calls: int
-    success_rate: Optional[Decimal]
-    avg_rpm: Optional[Decimal]
-    avg_negotiation_rounds: Optional[Decimal]
-    avg_rate_variance_pct: Optional[Decimal]
+    success_rate: Optional[float]
+    avg_rpm: Optional[float]
+    avg_negotiation_rounds: Optional[float]
+    avg_rate_variance_pct: Optional[float]
     avg_call_duration_seconds: Optional[int]
     avg_objections: Optional[int]
     avg_positive_words: Optional[int]
@@ -51,7 +51,7 @@ class CarrierResponse(BaseModel):
     neutral_sentiment_calls: int
     unknown_sentiment_calls: int
     total_loads_shown: int
-    avg_loads_per_call: Optional[Decimal]
+    avg_loads_per_call: Optional[float]
     status: str
     preferred: bool
     last_call_date: Optional[date]
@@ -67,7 +67,7 @@ class CarrierEquipmentResponse(BaseModel):
     equipment_type: str
     call_count: int
     success_count: int
-    success_rate: Optional[Decimal]
+    success_rate: Optional[float]
 
     class Config:
         from_attributes = True
@@ -79,10 +79,10 @@ class CarrierLaneResponse(BaseModel):
     miles: Optional[int]
     total_calls: int
     successful_calls: int
-    success_rate: Optional[Decimal]
-    avg_rpm: Optional[Decimal]
-    avg_loadboard_rate: Optional[Decimal]
-    avg_final_rate: Optional[Decimal]
+    success_rate: Optional[float]
+    avg_rpm: Optional[float]
+    avg_loadboard_rate: Optional[float]
+    avg_final_rate: Optional[float]
     last_call_date: Optional[date]
 
     class Config:
@@ -98,12 +98,12 @@ class CallEventResponse(BaseModel):
     equipment_type: str
     commodity_type: Optional[str]
     weight: Optional[int]
-    loadboard_rate: Decimal
-    offered_rate_initial: Optional[Decimal]
-    carrier_counter_rate: Optional[Decimal]
-    final_rate_agreed: Optional[Decimal]
-    kpi_rpm: Optional[Decimal]
-    kpi_rate_variance_pct: Optional[Decimal]
+    loadboard_rate: float
+    offered_rate_initial: Optional[float]
+    carrier_counter_rate: Optional[float]
+    final_rate_agreed: Optional[float]
+    kpi_rpm: Optional[float]
+    kpi_rate_variance_pct: Optional[float]
     num_negotiation_rounds: Optional[int]
     num_loads_shown: int
     outcome: Optional[str]

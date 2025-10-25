@@ -72,12 +72,12 @@ const CarrierIntelligence = () => {
         }
       }) || [];
 
-  const formatPercentage = (value) => `${value || 0}%`;
-  const formatCurrency = (value) => `$${value?.toFixed(2) || 0}`;
+  const formatPercentage = (value) => `${Number(value || 0)}%`;
+  const formatCurrency = (value) => `$${Number(value || 0).toFixed(2)}`;
   const formatDuration = (seconds) => {
     if (!seconds) return "0:00";
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
+    const minutes = Math.floor(Number(seconds) / 60);
+    const remainingSeconds = Number(seconds) % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
@@ -87,11 +87,11 @@ const CarrierIntelligence = () => {
     mcNumber: carrier.mc_number,
     status: carrier.status,
     preferred: carrier.preferred,
-    successRate: carrier.success_rate,
-    avgRpm: carrier.avg_rpm,
+    successRate: Number(carrier.success_rate || 0),
+    avgRpm: Number(carrier.avg_rpm || 0),
     totalCalls: carrier.total_calls,
     avgCallDuration: carrier.avg_call_duration_seconds,
-    avgLoadsPerCall: carrier.avg_loads_per_call,
+    avgLoadsPerCall: Number(carrier.avg_loads_per_call || 0),
     lastCallDate: carrier.last_call_date,
   }));
 
@@ -104,7 +104,9 @@ const CarrierIntelligence = () => {
     totalCalls: carrier.total_calls,
     successRate: `${carrier.success_rate || 0}%`,
     avgRpm: `$${carrier.avg_rpm || 0}`,
-    avgLoadsPerCall: carrier.avg_loads_per_call?.toFixed(1) || 0,
+    avgLoadsPerCall: carrier.avg_loads_per_call
+      ? Number(carrier.avg_loads_per_call).toFixed(1)
+      : 0,
     lastCallDate: carrier.last_call_date
       ? new Date(carrier.last_call_date).toLocaleDateString()
       : "Never",
