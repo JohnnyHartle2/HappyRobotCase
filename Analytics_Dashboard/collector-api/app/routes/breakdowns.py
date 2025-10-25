@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
@@ -10,6 +10,7 @@ router = APIRouter()
 
 @router.get("/breakdowns/by-lane", response_model=List[LaneBreakdown])
 async def get_lane_breakdowns(
+    request: Request,
     db: Session = Depends(get_db),
     api_key: str = Depends(require_read_key)
 ):
@@ -24,6 +25,7 @@ async def get_lane_breakdowns(
 
 @router.get("/breakdowns/by-equipment", response_model=List[EquipmentBreakdown])
 async def get_equipment_breakdowns(
+    request: Request,
     db: Session = Depends(get_db),
     api_key: str = Depends(require_read_key)
 ):
@@ -38,6 +40,7 @@ async def get_equipment_breakdowns(
 
 @router.get("/breakdowns/by-carrier", response_model=List[CarrierBreakdown])
 async def get_carrier_breakdowns(
+    request: Request,
     db: Session = Depends(get_db),
     api_key: str = Depends(require_read_key)
 ):

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional
@@ -11,6 +11,7 @@ router = APIRouter()
 
 @router.get("/metrics/overview", response_model=OverviewMetrics)
 async def get_overview(
+    request: Request,
     db: Session = Depends(get_db),
     api_key: str = Depends(require_read_key)
 ):
@@ -25,6 +26,7 @@ async def get_overview(
 
 @router.get("/metrics/trends", response_model=TrendsResponse)
 async def get_trends(
+    request: Request,
     start_date: Optional[datetime] = Query(None, description="Start date (ISO format)"),
     end_date: Optional[datetime] = Query(None, description="End date (ISO format)"),
     interval: str = Query("day", description="Time interval: hour, day, or week"),

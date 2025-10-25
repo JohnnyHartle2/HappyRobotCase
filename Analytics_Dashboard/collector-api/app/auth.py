@@ -1,12 +1,24 @@
-from fastapi import HTTPException, Depends, status
+from fastapi import HTTPException, Depends, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
-def get_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Validate API key from Authorization header"""
-    api_key = credentials.credentials
+def get_api_key(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Validate API key from either Authorization header or x-api-key header"""
+    
+    # Try to get API key from Authorization header first
+    if credentials:
+        api_key = credentials.credentials
+    else:
+        # Fall back to x-api-key header
+        api_key = request.headers.get("x-api-key")
+    
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required in Authorization header or x-api-key header"
+        )
     
     # Get valid API keys from environment
     ingest_key = os.getenv("INGEST_API_KEY")
@@ -28,9 +40,22 @@ def get_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
     
     return api_key
 
-def require_ingest_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
+def require_ingest_key(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Require ingest API key for webhook endpoints"""
-    api_key = credentials.credentials
+    
+    # Try to get API key from Authorization header first
+    if credentials:
+        api_key = credentials.credentials
+    else:
+        # Fall back to x-api-key header
+        api_key = request.headers.get("x-api-key")
+    
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required in Authorization header or x-api-key header"
+        )
+    
     ingest_key = os.getenv("INGEST_API_KEY")
     
     if not ingest_key:
@@ -47,9 +72,22 @@ def require_ingest_key(credentials: HTTPAuthorizationCredentials = Depends(secur
     
     return api_key
 
-def require_read_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
+def require_read_key(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Require read API key for analytics endpoints"""
-    api_key = credentials.credentials
+    
+    # Try to get API key from Authorization header first
+    if credentials:
+        api_key = credentials.credentials
+    else:
+        # Fall back to x-api-key header
+        api_key = request.headers.get("x-api-key")
+    
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required in Authorization header or x-api-key header"
+        )
+    
     read_key = os.getenv("READ_API_KEY")
     
     if not read_key:

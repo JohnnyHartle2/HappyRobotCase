@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
@@ -11,13 +11,14 @@ router = APIRouter()
 
 @router.post("/matching/find-carriers", response_model=MatchingResponse)
 async def find_carriers(
-    request: MatchingRequest,
+    request_data: MatchingRequest,
+    request: Request,
     db: Session = Depends(get_db),
     api_key: str = Depends(require_read_key)
 ):
     """Get smart carrier matching for a load"""
     try:
-        return get_smart_matching(db, request)
+        return get_smart_matching(db, request_data)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -26,6 +27,7 @@ async def find_carriers(
 
 @router.get("/carriers", response_model=List[CarrierResponse])
 async def get_carriers(
+    request: Request,
     db: Session = Depends(get_db),
     api_key: str = Depends(require_read_key)
 ):
@@ -42,6 +44,7 @@ async def get_carriers(
 @router.get("/carriers/{carrier_id}", response_model=CarrierResponse)
 async def get_carrier(
     carrier_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     api_key: str = Depends(require_read_key)
 ):
@@ -65,6 +68,7 @@ async def get_carrier(
 @router.get("/carriers/{carrier_id}/equipment", response_model=List[CarrierEquipmentResponse])
 async def get_carrier_equipment(
     carrier_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     api_key: str = Depends(require_read_key)
 ):
@@ -81,6 +85,7 @@ async def get_carrier_equipment(
 @router.get("/carriers/{carrier_id}/lanes", response_model=List[CarrierLaneResponse])
 async def get_carrier_lanes(
     carrier_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     api_key: str = Depends(require_read_key)
 ):

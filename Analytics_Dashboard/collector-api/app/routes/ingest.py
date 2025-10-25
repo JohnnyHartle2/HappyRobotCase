@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import date
@@ -12,6 +12,7 @@ router = APIRouter()
 @router.post("/events/call-completed", response_model=CallEventResponse)
 async def ingest_call_event(
     event: CallEventRequest,
+    request: Request,
     db: Session = Depends(get_db),
     api_key: str = Depends(require_ingest_key)
 ):

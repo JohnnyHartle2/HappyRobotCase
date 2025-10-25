@@ -8,7 +8,7 @@ const API_KEY = import.meta.env.VITE_API_KEY || "read-key-xyz789";
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    "x-api-key": API_KEY,
+    Authorization: `Bearer ${API_KEY}`,
     "Content-Type": "application/json",
   },
 });
