@@ -65,6 +65,16 @@ const Performance = () => {
     queryFn: () => breakdownsApi.getByEquipment().then((res) => res.data),
   });
 
+  const {
+    data: recentCalls,
+    isLoading: recentCallsLoading,
+    error: recentCallsError,
+  } = useQuery({
+    queryKey: ["recentCalls"],
+    queryFn: () => metricsApi.getRecentCalls(10).then((res) => res.data),
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
   if (overviewLoading || trendsLoading || laneLoading || equipmentLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -129,23 +139,26 @@ const Performance = () => {
     })) || [];
 
   // Recent calls data
-  const recentCalls =
-    laneBreakdown?.slice(0, 5).map((lane) => ({
-      lane: lane.lane,
-      calls: lane.total_calls,
-      successRate: `${lane.success_rate}%`,
-      avgRpm: `$${lane.avg_rpm}`,
-      avgLoadboardRate: `$${lane.avg_loadboard_rate}`,
-      avgFinalRate: `$${lane.avg_final_rate}`,
+  const recentCallsData =
+    recentCalls?.map((call) => ({
+      callId: call.call_id,
+      carrier: call.carrier_name,
+      lane: call.lane,
+      outcome: call.group_outcome_simple,
+      duration: formatDuration(call.call_duration_seconds),
+      rate: call.final_rate_agreed
+        ? `$${Number(call.final_rate_agreed).toFixed(2)}`
+        : "N/A",
+      date: new Date(call.created_at).toLocaleString(),
     })) || [];
 
   const recentCallsColumns = [
+    { key: "carrier", label: "Carrier" },
     { key: "lane", label: "Lane" },
-    { key: "calls", label: "Calls" },
-    { key: "successRate", label: "Success Rate" },
-    { key: "avgRpm", label: "Avg RPM" },
-    { key: "avgLoadboardRate", label: "Loadboard Rate" },
-    { key: "avgFinalRate", label: "Final Rate" },
+    { key: "outcome", label: "Outcome" },
+    { key: "duration", label: "Duration" },
+    { key: "rate", label: "Final Rate" },
+    { key: "date", label: "Date/Time" },
   ];
 
   return (
@@ -181,68 +194,68 @@ const Performance = () => {
           formatValue={formatDuration}
         />
         <KPICard
-          title="Avg Loads/Call"
-          value={overview?.avg_loads_per_call || 0}
-          icon={Loader}
-          formatValue={(val) => val?.toFixed(1) || 0}
+          title="Avg RPM"
+          value={overview?.avg_rpm || 0}
+          icon={DollarSign}
+          formatValue={(val) => `$${Number(val || 0).toFixed(2)}`}
         />
-      </div>
-
-      {/* Time Range Selector */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-gray-700">Time Range:</span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setTimeRange("1")}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                timeRange === "1"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              24 Hours
-            </button>
-            <button
-              onClick={() => setTimeRange("7")}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                timeRange === "7"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              7 Days
-            </button>
-            <button
-              onClick={() => setTimeRange("30")}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                timeRange === "30"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              30 Days
-            </button>
-            <button
-              onClick={() => setTimeRange("90")}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                timeRange === "90"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              90 Days
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Success Rate Over Time
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Success Rate Over Time
+            </h3>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">
+                Time Range:
+              </span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setTimeRange("1")}
+                  className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                    timeRange === "1"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  24h
+                </button>
+                <button
+                  onClick={() => setTimeRange("7")}
+                  className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                    timeRange === "7"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  7d
+                </button>
+                <button
+                  onClick={() => setTimeRange("30")}
+                  className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                    timeRange === "30"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  30d
+                </button>
+                <button
+                  onClick={() => setTimeRange("90")}
+                  className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                    timeRange === "90"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  90d
+                </button>
+              </div>
+            </div>
+          </div>
           <LineChart
             data={trends?.data || []}
             dataKey="success_rate"
@@ -297,12 +310,23 @@ const Performance = () => {
         </div>
       </div>
 
-      {/* Recent Activity */}
+      {/* Recent Calls */}
       <div className="card">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Recent Activity
+          Recent Calls
         </h3>
-        <DataTable data={recentCalls} columns={recentCallsColumns} />
+        {recentCallsLoading ? (
+          <div className="flex justify-center py-8">
+            <LoadingSpinner />
+          </div>
+        ) : recentCallsError ? (
+          <ErrorMessage
+            message="Failed to load recent calls"
+            onRetry={() => window.location.reload()}
+          />
+        ) : (
+          <DataTable data={recentCallsData} columns={recentCallsColumns} />
+        )}
       </div>
     </div>
   );

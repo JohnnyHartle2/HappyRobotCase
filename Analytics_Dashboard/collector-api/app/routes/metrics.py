@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 from ..database import get_db
-from ..schemas import OverviewMetrics, TrendsResponse, ErrorResponse
+from ..schemas import OverviewMetrics, TrendsResponse, ErrorResponse, CallEventResponse
 from ..auth import require_read_key
 from ..utils.aggregations import get_overview_metrics, get_trends_data
+from ..models import CallEvent
 
 router = APIRouter()
 
@@ -61,4 +62,24 @@ async def get_trends(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get trends data: {str(e)}"
+        )
+
+@router.get("/metrics/recent-calls", response_model=List[CallEventResponse])
+async def get_recent_calls(
+    request: Request,
+    limit: int = Query(10, description="Number of recent calls to return"),
+    db: Session = Depends(get_db),
+    api_key: str = Depends(require_read_key)
+):
+    """Get most recent call events"""
+    try:
+        calls = db.query(CallEvent).order_by(
+            CallEvent.created_at.desc()
+        ).limit(limit).all()
+        
+        return calls
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get recent calls: {str(e)}"
         )

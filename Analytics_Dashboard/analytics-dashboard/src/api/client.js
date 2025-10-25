@@ -26,6 +26,8 @@ apiClient.interceptors.response.use(
 export const metricsApi = {
   getOverview: () => apiClient.get("/metrics/overview"),
   getTrends: (params = {}) => apiClient.get("/metrics/trends", { params }),
+  getRecentCalls: (limit = 10) =>
+    apiClient.get("/metrics/recent-calls", { params: { limit } }),
 };
 
 export const breakdownsApi = {
