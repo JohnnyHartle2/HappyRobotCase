@@ -31,7 +31,7 @@ HappyRobotCase/
 
 - **Purpose**: Full-stack analytics platform for carrier call intelligence
 - **Status**: Production ready
-- **Features**: 
+- **Features**:
   - Collector API (FastAPI) for webhook ingestion and analytics
   - React Dashboard with performance metrics and carrier intelligence
   - Mock data generator with 100 realistic call events

@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, and_
-from datetime import datetime, timedelta
+from sqlalchemy import func, desc, and_, or_
+from datetime import datetime, timedelta, date
 from typing import List, Dict, Any
-from ..models import CallEvent
-from ..schemas import OverviewMetrics, TrendDataPoint, RouteBreakdown, EquipmentBreakdown, CarrierBreakdown, Recommendation
+from ..models import CallEvent, Carrier, CarrierEquipment, CarrierLane
+from ..schemas import OverviewMetrics, TrendDataPoint, LaneBreakdown, EquipmentBreakdown, CarrierBreakdown, Recommendation, MatchingRequest, MatchingResponse
 
 def get_overview_metrics(db: Session) -> OverviewMetrics:
     """Calculate overview metrics for all calls"""
@@ -14,67 +14,52 @@ def get_overview_metrics(db: Session) -> OverviewMetrics:
     if total_calls == 0:
         return OverviewMetrics(
             total_calls=0,
-            conversion_rate=0.0,
+            successful_calls=0,
+            success_rate=0.0,
+            avg_call_duration_seconds=0.0,
+            avg_loads_per_call=0.0,
             avg_negotiation_rounds=0.0,
-            avg_rate_delta=0.0,
-            avg_rate_delta_percent=0.0,
-            sentiment_distribution={"positive": 0, "neutral": 0, "negative": 0}
+            avg_rate_variance_pct=0.0,
+            sentiment_distribution={"positive": 0, "neutral": 0, "negative": 0, "unknown": 0}
         )
     
-    # Conversion rate
-    accepted_calls = db.query(CallEvent).filter(CallEvent.outcome == "accepted").count()
-    conversion_rate = (accepted_calls / total_calls) * 100
+    # Successful calls
+    successful_calls = db.query(CallEvent).filter(CallEvent.group_outcome_simple == "Successful").count()
+    success_rate = (successful_calls / total_calls) * 100
+    
+    # Average call duration
+    avg_duration = db.query(func.avg(CallEvent.call_duration_seconds)).scalar() or 0
+    
+    # Average loads per call
+    avg_loads = db.query(func.avg(CallEvent.num_loads_shown)).scalar() or 0
     
     # Average negotiation rounds
-    avg_rounds = db.query(func.avg(CallEvent.negotiation_rounds)).scalar() or 0
+    avg_rounds = db.query(func.avg(CallEvent.num_negotiation_rounds)).scalar() or 0
     
-    # Rate delta calculations
-    rate_deltas = db.query(
-        CallEvent.final_agreed_rate - CallEvent.loadboard_rate
-    ).filter(CallEvent.outcome == "accepted").all()
-    
-    avg_rate_delta = sum([delta[0] for delta in rate_deltas]) / len(rate_deltas) if rate_deltas else 0
-    
-    # Rate delta percentage
-    rate_delta_percents = db.query(
-        ((CallEvent.final_agreed_rate - CallEvent.loadboard_rate) / CallEvent.loadboard_rate * 100)
-    ).filter(CallEvent.outcome == "accepted").all()
-    
-    avg_rate_delta_percent = sum([pct[0] for pct in rate_delta_percents]) / len(rate_delta_percents) if rate_delta_percents else 0
+    # Average rate variance
+    avg_variance = db.query(func.avg(CallEvent.kpi_rate_variance_pct)).scalar() or 0
     
     # Sentiment distribution
-    sentiment_counts = db.query(
-        func.count(CallEvent.id)
-    ).group_by(
-        func.case(
-            (CallEvent.sentiment_score > 0.1, "positive"),
-            (CallEvent.sentiment_score < -0.1, "negative"),
-            else_="neutral"
-        )
-    ).all()
-    
-    sentiment_dist = {"positive": 0, "neutral": 0, "negative": 0}
-    for count in sentiment_counts:
-        # This is a simplified approach - in practice you'd need to map the counts properly
-        pass
-    
-    # Better sentiment distribution calculation
-    positive = db.query(CallEvent).filter(CallEvent.sentiment_score > 0.1).count()
-    negative = db.query(CallEvent).filter(CallEvent.sentiment_score < -0.1).count()
-    neutral = total_calls - positive - negative
+    positive = db.query(CallEvent).filter(CallEvent.carrier_sentiment == "positive").count()
+    negative = db.query(CallEvent).filter(CallEvent.carrier_sentiment == "negative").count()
+    neutral = db.query(CallEvent).filter(CallEvent.carrier_sentiment == "neutral").count()
+    unknown = db.query(CallEvent).filter(CallEvent.carrier_sentiment == "unknown").count()
     
     sentiment_dist = {
         "positive": positive,
         "neutral": neutral,
-        "negative": negative
+        "negative": negative,
+        "unknown": unknown
     }
     
     return OverviewMetrics(
         total_calls=total_calls,
-        conversion_rate=round(conversion_rate, 2),
+        successful_calls=successful_calls,
+        success_rate=round(success_rate, 2),
+        avg_call_duration_seconds=round(avg_duration, 0),
+        avg_loads_per_call=round(avg_loads, 2),
         avg_negotiation_rounds=round(avg_rounds, 2),
-        avg_rate_delta=round(avg_rate_delta, 2),
-        avg_rate_delta_percent=round(avg_rate_delta_percent, 2),
+        avg_rate_variance_pct=round(avg_variance, 2),
         sentiment_distribution=sentiment_dist
     )
 
@@ -83,13 +68,13 @@ def get_trends_data(db: Session, start_date: datetime, end_date: datetime, inter
     
     # Determine the date truncation based on interval
     if interval == "hour":
-        date_trunc = func.date_trunc('hour', CallEvent.started_at)
+        date_trunc = func.date_trunc('hour', CallEvent.call_date)
     elif interval == "day":
-        date_trunc = func.date_trunc('day', CallEvent.started_at)
+        date_trunc = func.date_trunc('day', CallEvent.call_date)
     elif interval == "week":
-        date_trunc = func.date_trunc('week', CallEvent.started_at)
+        date_trunc = func.date_trunc('week', CallEvent.call_date)
     else:
-        date_trunc = func.date_trunc('day', CallEvent.started_at)
+        date_trunc = func.date_trunc('day', CallEvent.call_date)
     
     # Query aggregated data by time period
     trends = db.query(
@@ -97,21 +82,22 @@ def get_trends_data(db: Session, start_date: datetime, end_date: datetime, inter
         func.count(CallEvent.id).label('total_calls'),
         func.avg(
             func.case(
-                (CallEvent.outcome == "accepted", 1),
+                (CallEvent.group_outcome_simple == "Successful", 1),
                 else_=0
             )
-        ).label('conversion_rate'),
-        func.avg(CallEvent.sentiment_score).label('avg_sentiment'),
+        ).label('success_rate'),
         func.avg(
             func.case(
-                (CallEvent.outcome == "accepted", CallEvent.final_agreed_rate),
-                else_=None
+                (CallEvent.carrier_sentiment == "positive", 1),
+                (CallEvent.carrier_sentiment == "negative", -1),
+                else_=0
             )
-        ).label('avg_accepted_rate')
+        ).label('avg_sentiment'),
+        func.avg(CallEvent.kpi_rpm).label('avg_rpm')
     ).filter(
         and_(
-            CallEvent.started_at >= start_date,
-            CallEvent.started_at <= end_date
+            CallEvent.call_date >= start_date.date(),
+            CallEvent.call_date <= end_date.date()
         )
     ).group_by(
         date_trunc
@@ -122,45 +108,45 @@ def get_trends_data(db: Session, start_date: datetime, end_date: datetime, inter
     return [
         TrendDataPoint(
             date=trend.date.strftime("%Y-%m-%d %H:%M:%S"),
-            conversion_rate=round(trend.conversion_rate * 100, 2) if trend.conversion_rate else 0,
+            success_rate=round(trend.success_rate * 100, 2) if trend.success_rate else 0,
             avg_sentiment=round(trend.avg_sentiment, 3) if trend.avg_sentiment else 0,
-            avg_accepted_rate=round(trend.avg_accepted_rate, 2) if trend.avg_accepted_rate else 0,
+            avg_rpm=round(trend.avg_rpm, 2) if trend.avg_rpm else 0,
             total_calls=trend.total_calls
         )
         for trend in trends
     ]
 
-def get_route_breakdown(db: Session) -> List[RouteBreakdown]:
-    """Get performance breakdown by route"""
+def get_lane_breakdown(db: Session) -> List[LaneBreakdown]:
+    """Get performance breakdown by lane"""
     
-    routes = db.query(
-        CallEvent.origin,
-        CallEvent.destination,
+    lanes = db.query(
+        CallEvent.lane,
         func.count(CallEvent.id).label('total_calls'),
         func.avg(
             func.case(
-                (CallEvent.outcome == "accepted", 1),
+                (CallEvent.group_outcome_simple == "Successful", 1),
                 else_=0
             )
-        ).label('conversion_rate'),
-        func.avg(CallEvent.final_agreed_rate).label('avg_rate'),
-        func.avg(CallEvent.miles).label('avg_miles')
+        ).label('success_rate'),
+        func.avg(CallEvent.kpi_rpm).label('avg_rpm'),
+        func.avg(CallEvent.loadboard_rate).label('avg_loadboard_rate'),
+        func.avg(CallEvent.final_rate_agreed).label('avg_final_rate')
     ).group_by(
-        CallEvent.origin, CallEvent.destination
+        CallEvent.lane
     ).order_by(
         desc('total_calls')
     ).all()
     
     return [
-        RouteBreakdown(
-            origin=route.origin,
-            destination=route.destination,
-            total_calls=route.total_calls,
-            conversion_rate=round(route.conversion_rate * 100, 2),
-            avg_rate=round(route.avg_rate, 2),
-            avg_rate_per_mile=round(route.avg_rate / route.avg_miles, 2) if route.avg_miles else 0
+        LaneBreakdown(
+            lane=lane.lane,
+            total_calls=lane.total_calls,
+            success_rate=round(lane.success_rate * 100, 2),
+            avg_rpm=round(lane.avg_rpm, 2) if lane.avg_rpm else 0,
+            avg_loadboard_rate=round(lane.avg_loadboard_rate, 2) if lane.avg_loadboard_rate else 0,
+            avg_final_rate=round(lane.avg_final_rate, 2) if lane.avg_final_rate else 0
         )
-        for route in routes
+        for lane in lanes
     ]
 
 def get_equipment_breakdown(db: Session) -> List[EquipmentBreakdown]:
@@ -171,12 +157,12 @@ def get_equipment_breakdown(db: Session) -> List[EquipmentBreakdown]:
         func.count(CallEvent.id).label('total_calls'),
         func.avg(
             func.case(
-                (CallEvent.outcome == "accepted", 1),
+                (CallEvent.group_outcome_simple == "Successful", 1),
                 else_=0
             )
-        ).label('conversion_rate'),
-        func.avg(CallEvent.final_agreed_rate).label('avg_rate'),
-        func.avg(CallEvent.negotiation_rounds).label('avg_rounds')
+        ).label('success_rate'),
+        func.avg(CallEvent.kpi_rpm).label('avg_rpm'),
+        func.avg(CallEvent.num_negotiation_rounds).label('avg_rounds')
     ).group_by(
         CallEvent.equipment_type
     ).order_by(
@@ -187,9 +173,9 @@ def get_equipment_breakdown(db: Session) -> List[EquipmentBreakdown]:
         EquipmentBreakdown(
             equipment_type=eq.equipment_type,
             total_calls=eq.total_calls,
-            conversion_rate=round(eq.conversion_rate * 100, 2),
-            avg_rate=round(eq.avg_rate, 2),
-            avg_negotiation_rounds=round(eq.avg_rounds, 2)
+            success_rate=round(eq.success_rate * 100, 2),
+            avg_rpm=round(eq.avg_rpm, 2) if eq.avg_rpm else 0,
+            avg_negotiation_rounds=round(eq.avg_rounds, 2) if eq.avg_rounds else 0
         )
         for eq in equipment
     ]
@@ -197,152 +183,139 @@ def get_equipment_breakdown(db: Session) -> List[EquipmentBreakdown]:
 def get_carrier_breakdown(db: Session) -> List[CarrierBreakdown]:
     """Get performance breakdown by carrier"""
     
-    carriers = db.query(
-        CallEvent.carrier_mc_number,
-        CallEvent.carrier_name,
-        func.count(CallEvent.id).label('total_calls'),
-        func.avg(
-            func.case(
-                (CallEvent.outcome == "accepted", 1),
-                else_=0
-            )
-        ).label('conversion_rate'),
-        func.avg(CallEvent.final_agreed_rate / CallEvent.miles).label('avg_rate_per_mile')
-    ).group_by(
-        CallEvent.carrier_mc_number, CallEvent.carrier_name
-    ).order_by(
-        desc('total_calls')
-    ).all()
+    carriers = db.query(Carrier).all()
     
-    # Get preferred routes for each carrier
     carrier_breakdowns = []
     for carrier in carriers:
-        # Get top 3 routes for this carrier
-        top_routes = db.query(
-            CallEvent.origin,
-            CallEvent.destination,
-            func.count(CallEvent.id).label('route_calls')
+        # Get top 3 lanes for this carrier
+        top_lanes = db.query(
+            CallEvent.lane,
+            func.count(CallEvent.id).label('lane_calls')
         ).filter(
-            CallEvent.carrier_mc_number == carrier.carrier_mc_number
+            CallEvent.carrier_id == carrier.carrier_id
         ).group_by(
-            CallEvent.origin, CallEvent.destination
+            CallEvent.lane
         ).order_by(
-            desc('route_calls')
+            desc('lane_calls')
         ).limit(3).all()
         
-        preferred_routes = [f"{route.origin} → {route.destination}" for route in top_routes]
-        
-        # Calculate booking frequency (calls per day over last 30 days)
-        thirty_days_ago = datetime.now() - timedelta(days=30)
-        recent_calls = db.query(CallEvent).filter(
-            and_(
-                CallEvent.carrier_mc_number == carrier.carrier_mc_number,
-                CallEvent.started_at >= thirty_days_ago
-            )
-        ).count()
-        
-        booking_frequency = recent_calls / 30.0
+        preferred_lanes = [lane.lane for lane in top_lanes]
         
         carrier_breakdowns.append(
             CarrierBreakdown(
-                carrier_mc_number=carrier.carrier_mc_number,
+                carrier_id=carrier.carrier_id,
                 carrier_name=carrier.carrier_name,
                 total_calls=carrier.total_calls,
-                conversion_rate=round(carrier.conversion_rate * 100, 2),
-                avg_rate_per_mile=round(carrier.avg_rate_per_mile, 2),
-                preferred_routes=preferred_routes,
-                booking_frequency=round(booking_frequency, 2)
+                success_rate=float(carrier.success_rate) if carrier.success_rate else 0,
+                avg_rpm=float(carrier.avg_rpm) if carrier.avg_rpm else 0,
+                avg_loads_per_call=float(carrier.avg_loads_per_call) if carrier.avg_loads_per_call else 0,
+                preferred_lanes=preferred_lanes,
+                last_call_date=carrier.last_call_date
             )
         )
     
     return carrier_breakdowns
 
-def get_carrier_recommendations(db: Session, origin: str, destination: str) -> List[Recommendation]:
-    """Get carrier recommendations for a specific route"""
+def get_smart_matching(db: Session, request: MatchingRequest) -> MatchingResponse:
+    """Get smart carrier matching for a load"""
     
-    # Get carriers who have handled this exact route
-    route_carriers = db.query(
-        CallEvent.carrier_mc_number,
-        CallEvent.carrier_name,
-        func.count(CallEvent.id).label('route_calls'),
-        func.avg(
-            func.case(
-                (CallEvent.outcome == "accepted", 1),
-                else_=0
-            )
-        ).label('conversion_rate'),
-        func.avg(CallEvent.final_agreed_rate).label('avg_rate'),
-        func.avg(CallEvent.negotiation_rounds).label('avg_rounds')
+    lane = f"{request.lane}"
+    equipment_type = request.equipment_type
+    
+    # Get carriers who have handled this exact lane and equipment
+    exact_matches = db.query(
+        Carrier.carrier_id,
+        Carrier.carrier_name,
+        Carrier.success_rate,
+        Carrier.avg_rpm,
+        Carrier.avg_negotiation_rounds,
+        Carrier.avg_loads_per_call,
+        Carrier.last_call_date,
+        func.count(CallEvent.id).label('lane_calls')
+    ).join(
+        CallEvent, Carrier.carrier_id == CallEvent.carrier_id
     ).filter(
         and_(
-            CallEvent.origin == origin,
-            CallEvent.destination == destination
+            CallEvent.lane == lane,
+            CallEvent.equipment_type == equipment_type
         )
     ).group_by(
-        CallEvent.carrier_mc_number, CallEvent.carrier_name
+        Carrier.carrier_id, Carrier.carrier_name, Carrier.success_rate,
+        Carrier.avg_rpm, Carrier.avg_negotiation_rounds, Carrier.avg_loads_per_call,
+        Carrier.last_call_date
     ).all()
     
-    # If no carriers for this exact route, get carriers for similar routes
-    if not route_carriers:
-        # Get carriers who have handled routes with same origin or destination
-        similar_carriers = db.query(
-            CallEvent.carrier_mc_number,
-            CallEvent.carrier_name,
-            func.count(CallEvent.id).label('total_calls'),
-            func.avg(
-                func.case(
-                    (CallEvent.outcome == "accepted", 1),
-                    else_=0
-                )
-            ).label('conversion_rate'),
-            func.avg(CallEvent.final_agreed_rate).label('avg_rate'),
-            func.avg(CallEvent.negotiation_rounds).label('avg_rounds')
+    # If no exact matches, get carriers with same equipment type
+    if not exact_matches:
+        exact_matches = db.query(
+            Carrier.carrier_id,
+            Carrier.carrier_name,
+            Carrier.success_rate,
+            Carrier.avg_rpm,
+            Carrier.avg_negotiation_rounds,
+            Carrier.avg_loads_per_call,
+            Carrier.last_call_date,
+            func.count(CallEvent.id).label('lane_calls')
+        ).join(
+            CallEvent, Carrier.carrier_id == CallEvent.carrier_id
         ).filter(
-            or_(
-                CallEvent.origin == origin,
-                CallEvent.destination == destination
-            )
+            CallEvent.equipment_type == equipment_type
         ).group_by(
-            CallEvent.carrier_mc_number, CallEvent.carrier_name
+            Carrier.carrier_id, Carrier.carrier_name, Carrier.success_rate,
+            Carrier.avg_rpm, Carrier.avg_negotiation_rounds, Carrier.avg_loads_per_call,
+            Carrier.last_call_date
         ).order_by(
-            desc('total_calls')
-        ).limit(5).all()
-        
-        route_carriers = similar_carriers
+            desc('lane_calls')
+        ).limit(10).all()
     
     recommendations = []
-    for carrier in route_carriers:
-        # Calculate recommendation score (0-100)
-        # Higher conversion rate = higher score
-        # Lower negotiation rounds = higher score
-        # More calls = higher score (experience)
+    for carrier in exact_matches:
+        # Calculate match score (0-100)
+        lane_success_score = float(carrier.success_rate or 0) * 0.30  # Max 30 points
+        equipment_match_score = 20  # Max 20 points (has the equipment)
+        rate_competitiveness = max(0, 20 - abs(float(carrier.avg_rpm or 0) - 2.0) * 5)  # Max 20 points
+        recent_activity = 15 if carrier.last_call_date and (date.today() - carrier.last_call_date).days <= 7 else 5  # Max 15 points
+        sentiment_score = 10  # Max 10 points (assume positive if in system)
+        efficiency_score = max(0, (5 - float(carrier.avg_negotiation_rounds or 0)) * 2)  # Max 10 points
         
-        conversion_score = carrier.conversion_rate * 40  # Max 40 points
-        experience_score = min(carrier.route_calls * 2, 30)  # Max 30 points
-        efficiency_score = max(0, (5 - carrier.avg_rounds) * 6)  # Max 30 points
-        
-        total_score = conversion_score + experience_score + efficiency_score
+        total_score = lane_success_score + equipment_match_score + rate_competitiveness + recent_activity + sentiment_score + efficiency_score
         
         # Generate reasons
         reasons = []
-        if carrier.conversion_rate > 0.7:
-            reasons.append("High conversion rate")
-        if carrier.route_calls > 5:
-            reasons.append("Experienced on this route")
-        if carrier.avg_rounds < 2.5:
-            reasons.append("Quick to close deals")
-        if carrier.avg_rate < 2000:  # Assuming reasonable rate threshold
+        if carrier.lane_calls > 0:
+            reasons.append(f"{carrier.lane_calls} calls on this lane")
+        if carrier.success_rate and carrier.success_rate > 70:
+            reasons.append(f"{carrier.success_rate:.0f}% success rate")
+        if carrier.avg_rpm and carrier.avg_rpm < 2.5:
             reasons.append("Competitive rates")
+        if carrier.avg_negotiation_rounds and carrier.avg_negotiation_rounds < 2.5:
+            reasons.append("Quick to close deals")
+        if carrier.last_call_date and (date.today() - carrier.last_call_date).days <= 3:
+            reasons.append("Recently active")
+        
+        # Calculate expected rate range
+        base_rate = request.miles * 2.0  # Base rate calculation
+        expected_min = base_rate * 0.9
+        expected_max = base_rate * 1.1
+        
+        confidence = "High" if total_score > 70 else "Medium" if total_score > 50 else "Low"
         
         recommendations.append(
             Recommendation(
-                carrier_mc_number=carrier.carrier_mc_number,
+                carrier_id=carrier.carrier_id,
                 carrier_name=carrier.carrier_name,
-                score=round(total_score, 1),
+                match_score=round(total_score, 1),
+                expected_rate_min=round(expected_min, 2),
+                expected_rate_max=round(expected_max, 2),
+                confidence=confidence,
                 reasons=reasons
             )
         )
     
     # Sort by score and return top 5
-    recommendations.sort(key=lambda x: x.score, reverse=True)
-    return recommendations[:5]
+    recommendations.sort(key=lambda x: x.match_score, reverse=True)
+    return MatchingResponse(
+        lane=lane,
+        equipment_type=equipment_type,
+        recommendations=recommendations[:5]
+    )

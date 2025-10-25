@@ -15,10 +15,12 @@ This guide covers deploying both the Collector API (FastAPI) and Analytics Dashb
 ## Step 1: Provision PostgreSQL Database
 
 1. **Go to Render Dashboard**
+
    - Navigate to [render.com](https://render.com)
    - Click "New +" → "PostgreSQL"
 
 2. **Configure Database**
+
    - **Name**: `happyrobot-analytics-db`
    - **Database**: `happyrobot_analytics`
    - **User**: `happyrobot_user`
@@ -32,10 +34,12 @@ This guide covers deploying both the Collector API (FastAPI) and Analytics Dashb
 ## Step 2: Deploy Collector API
 
 1. **Create Web Service**
+
    - Go to Dashboard → "New +" → "Web Service"
    - Connect your GitHub repository
 
 2. **Configure Settings**
+
    - **Name**: `happyrobot-collector-api`
    - **Region**: Same as database
    - **Branch**: `main`
@@ -45,6 +49,7 @@ This guide covers deploying both the Collector API (FastAPI) and Analytics Dashb
    - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
 3. **Set Environment Variables**
+
    ```
    DATABASE_URL=<your-postgres-url>
    INGEST_API_KEY=ingest-key-abc123
@@ -60,10 +65,12 @@ This guide covers deploying both the Collector API (FastAPI) and Analytics Dashb
 ## Step 3: Seed Database
 
 1. **Access Render Shell**
+
    - Go to your Collector API service
    - Click "Shell" tab
 
 2. **Run Seed Script**
+
    ```bash
    cd Analytics_Dashboard/collector-api
    python scripts/seed_mock_data.py
@@ -76,10 +83,12 @@ This guide covers deploying both the Collector API (FastAPI) and Analytics Dashb
 ## Step 4: Deploy Analytics Dashboard
 
 1. **Create Static Site**
+
    - Go to Dashboard → "New +" → "Static Site"
    - Connect your GitHub repository
 
 2. **Configure Settings**
+
    - **Name**: `happyrobot-analytics-dashboard`
    - **Branch**: `main`
    - **Root Directory**: `Analytics_Dashboard/analytics-dashboard`
@@ -87,6 +96,7 @@ This guide covers deploying both the Collector API (FastAPI) and Analytics Dashb
    - **Publish Directory**: `dist`
 
 3. **Set Environment Variables**
+
    ```
    VITE_API_URL=https://happyrobot-collector-api.onrender.com/api/v1
    VITE_API_KEY=read-key-xyz789
@@ -112,11 +122,13 @@ This guide covers deploying both the Collector API (FastAPI) and Analytics Dashb
 ## Step 6: Test End-to-End
 
 1. **Test API Health**
+
    ```bash
    curl https://happyrobot-collector-api.onrender.com/health
    ```
 
 2. **Test API Endpoints**
+
    ```bash
    # Test overview metrics
    curl -H "Authorization: Bearer read-key-xyz789" \
@@ -131,6 +143,7 @@ This guide covers deploying both the Collector API (FastAPI) and Analytics Dashb
 ## Step 7: Configure HappyRobot Webhook
 
 1. **Get Webhook URL**
+
    - Your webhook endpoint: `https://happyrobot-collector-api.onrender.com/api/v1/events/call-completed`
 
 2. **Configure HappyRobot Platform**
@@ -141,33 +154,38 @@ This guide covers deploying both the Collector API (FastAPI) and Analytics Dashb
 ## Environment Variables Reference
 
 ### Collector API
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:port/db` |
-| `INGEST_API_KEY` | API key for webhook ingestion | `ingest-key-abc123` |
-| `READ_API_KEY` | API key for analytics endpoints | `read-key-xyz789` |
-| `CORS_ORIGINS` | Allowed CORS origins | `https://dashboard.onrender.com` |
+
+| Variable         | Description                     | Example                               |
+| ---------------- | ------------------------------- | ------------------------------------- |
+| `DATABASE_URL`   | PostgreSQL connection string    | `postgresql://user:pass@host:port/db` |
+| `INGEST_API_KEY` | API key for webhook ingestion   | `ingest-key-abc123`                   |
+| `READ_API_KEY`   | API key for analytics endpoints | `read-key-xyz789`                     |
+| `CORS_ORIGINS`   | Allowed CORS origins            | `https://dashboard.onrender.com`      |
 
 ### Analytics Dashboard
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `VITE_API_URL` | Collector API base URL | `https://api.onrender.com/api/v1` |
-| `VITE_API_KEY` | API key for authentication | `read-key-xyz789` |
+
+| Variable       | Description                | Example                           |
+| -------------- | -------------------------- | --------------------------------- |
+| `VITE_API_URL` | Collector API base URL     | `https://api.onrender.com/api/v1` |
+| `VITE_API_KEY` | API key for authentication | `read-key-xyz789`                 |
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **Database Connection Failed**
+
    - Check `DATABASE_URL` format
    - Ensure database is running
    - Verify network connectivity
 
 2. **CORS Errors**
+
    - Update `CORS_ORIGINS` with correct dashboard URL
    - Restart Collector API after changes
 
 3. **API Key Authentication Failed**
+
    - Verify API keys match between services
    - Check Authorization header format
 

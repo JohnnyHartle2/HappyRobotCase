@@ -2,24 +2,24 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
-from ..schemas import RouteBreakdown, EquipmentBreakdown, CarrierBreakdown, ErrorResponse
+from ..schemas import LaneBreakdown, EquipmentBreakdown, CarrierBreakdown, ErrorResponse
 from ..auth import require_read_key
-from ..utils.aggregations import get_route_breakdown, get_equipment_breakdown, get_carrier_breakdown
+from ..utils.aggregations import get_lane_breakdown, get_equipment_breakdown, get_carrier_breakdown
 
 router = APIRouter()
 
-@router.get("/breakdowns/by-route", response_model=List[RouteBreakdown])
-async def get_route_breakdowns(
+@router.get("/breakdowns/by-lane", response_model=List[LaneBreakdown])
+async def get_lane_breakdowns(
     db: Session = Depends(get_db),
     api_key: str = Depends(require_read_key)
 ):
-    """Get performance breakdown by route"""
+    """Get performance breakdown by lane"""
     try:
-        return get_route_breakdown(db)
+        return get_lane_breakdown(db)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get route breakdown: {str(e)}"
+            detail=f"Failed to get lane breakdown: {str(e)}"
         )
 
 @router.get("/breakdowns/by-equipment", response_model=List[EquipmentBreakdown])
